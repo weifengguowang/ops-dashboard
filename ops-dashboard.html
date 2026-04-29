@@ -1,0 +1,1298 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>运营管控 Demo</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #1a1a2e;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+.phone-frame {
+  width: 375px; height: 812px;
+  background: #F5F5F5;
+  border-radius: 40px;
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  display: flex; flex-direction: column;
+}
+.status-bar {
+  height: 44px; background: #fff;
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 0 20px; font-size: 12px; color: #333; flex-shrink: 0;
+}
+.page-container { flex: 1; overflow: hidden; position: relative; }
+.page {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  overflow-y: auto; overflow-x: hidden;
+  -webkit-overflow-scrolling: touch; background: #F5F5F5;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+  transform: translateX(100%); opacity: 0;
+  will-change: transform, opacity;
+}
+.page.active { transform: translateX(0); opacity: 1; }
+.page.prev { transform: translateX(-30%); opacity: 0; }
+.tab-bar {
+  height: 64px; background: #fff; border-top: 1px solid #eee;
+  display: flex; flex-shrink: 0; padding-bottom: 8px;
+}
+.tab-item {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 2px;
+  cursor: pointer; transition: all 0.2s;
+  -webkit-tap-highlight-color: transparent; user-select: none;
+}
+.tab-item:active { transform: scale(0.95); }
+.tab-item .tab-icon { font-size: 22px; line-height: 1; }
+.tab-item .tab-label { font-size: 10px; color: #999; }
+.tab-item.active .tab-label { color: #FF6B35; font-weight: 600; }
+.card {
+  background: #fff; border-radius: 12px; padding: 16px;
+  margin: 0 12px 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 500;
+  cursor: pointer; transition: all 0.2s; border: none;
+  -webkit-tap-highlight-color: transparent; user-select: none;
+}
+.btn:active { transform: scale(0.95); }
+.btn-primary { background: #FF6B35; color: #fff; }
+.btn-outline { background: transparent; border: 1px solid #ddd; color: #666; }
+.btn-success { background: #00C853; color: #fff; }
+.btn-danger { background: #FF4444; color: #fff; }
+.btn-sm { padding: 4px 10px; font-size: 11px; }
+.pulse-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: #FF4444;
+  display: inline-block; animation: pulse 1.5s infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.3); }
+}
+.pull-indicator {
+  text-align: center; padding: 10px; font-size: 12px; color: #999;
+  transition: all 0.3s; height: 0; overflow: hidden;
+}
+.pull-indicator.show { height: 40px; }
+.drawer-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.4); z-index: 100;
+  opacity: 0; pointer-events: none; transition: opacity 0.3s;
+}
+.drawer-overlay.show { opacity: 1; pointer-events: auto; }
+.drawer {
+  position: fixed; bottom: 0; left: 50%;
+  transform: translateX(-50%) translateY(100%);
+  width: 375px; background: #fff; border-radius: 20px 20px 0 0;
+  padding: 20px; z-index: 101; transition: transform 0.3s ease;
+  max-height: 60vh; overflow-y: auto;
+}
+.drawer.show { transform: translateX(-50%) translateY(0); }
+.drawer-handle {
+  width: 40px; height: 4px; background: #ddd;
+  border-radius: 2px; margin: 0 auto 16px;
+}
+.modal-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5); z-index: 200;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity 0.3s;
+}
+.modal-overlay.show { opacity: 1; pointer-events: auto; }
+.modal-box {
+  width: 300px; background: #fff; border-radius: 16px;
+  padding: 24px; text-align: center;
+}
+.modal-box h3 { font-size: 16px; margin-bottom: 8px; }
+.modal-box p { font-size: 13px; color: #666; margin-bottom: 20px; }
+.modal-actions { display: flex; gap: 12px; justify-content: center; }
+.modal-actions .btn { flex: 1; }
+.page::-webkit-scrollbar { width: 0; }
+.chart-svg { width: 100%; height: 160px; }
+.matrix-wrap { overflow-x: auto; }
+.matrix-table { border-collapse: collapse; font-size: 12px; min-width: 320px; }
+.matrix-table th, .matrix-table td {
+  padding: 8px 6px; text-align: center;
+  border-bottom: 1px solid #f0f0f0; white-space: nowrap;
+}
+.matrix-table th { color: #999; font-weight: 500; font-size: 11px; }
+.matrix-table td:first-child { text-align: left; font-weight: 500; color: #333; }
+.dot-status {
+  display: inline-block; width: 20px; height: 20px;
+  border-radius: 50%; cursor: pointer; transition: transform 0.2s;
+}
+.dot-status:active { transform: scale(1.2); }
+.dot-red { background: #FF4444; }
+.dot-green { background: #00C853; }
+.dot-yellow { background: #FFC107; }
+.dot-blue { background: #2196F3; }
+.dot-purple { background: #9C27B0; animation: pulse-purple 1.5s infinite; }
+@keyframes pulse-purple {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(156,39,176,0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(156,39,176,0); }
+}
+.timeline { position: relative; padding-left: 20px; }
+.timeline::before {
+  content: ''; position: absolute; left: 8px;
+  top: 0; bottom: 0; width: 2px; background: #eee;
+}
+.timeline-item {
+  position: relative; padding: 12px 0 12px 16px;
+  border-bottom: 1px solid #f5f5f5;
+}
+.timeline-item::before {
+  content: ''; position: absolute; left: -16px; top: 16px;
+  width: 10px; height: 10px; border-radius: 50%;
+  background: #FF6B35; border: 2px solid #fff;
+  box-shadow: 0 0 0 2px #FF6B35;
+}
+.timeline-date { font-size: 13px; font-weight: 600; color: #333; margin-bottom: 4px; }
+.timeline-content { font-size: 12px; color: #666; line-height: 1.6; }
+.timeline-content .tag {
+  display: inline-block; padding: 1px 6px; border-radius: 4px;
+  font-size: 11px; margin: 0 2px;
+}
+.tag-red { background: #FFF0F0; color: #FF4444; }
+.tag-green { background: #F0FFF4; color: #00C853; }
+.tag-yellow { background: #FFF8E1; color: #F57F17; }
+.tag-purple { background: #F3E5F5; color: #9C27B0; }
+.tag-blue { background: #E3F2FD; color: #2196F3; }
+.calendar-grid {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  gap: 4px; text-align: center;
+}
+.calendar-header { font-size: 11px; color: #999; padding: 4px 0; }
+.calendar-day {
+  padding: 8px 0; font-size: 13px; border-radius: 8px;
+  cursor: pointer; position: relative; transition: background 0.2s;
+}
+.calendar-day:active { background: #f0f0f0; }
+.calendar-day.has-event::after {
+  content: ''; position: absolute; bottom: 2px;
+  left: 50%; transform: translateX(-50%);
+  width: 6px; height: 6px; border-radius: 50%; background: #FF6B35;
+}
+.calendar-day.today { background: #FFF0E8; color: #FF6B35; font-weight: 600; }
+.calendar-day.other-month { color: #ddd; }
+.empty-state { text-align: center; padding: 40px 20px; }
+.empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+.empty-state .text { font-size: 14px; color: #999; }
+.alert-item { cursor: pointer; }
+.alert-item:active { background: #fafafa; }
+.alert-detail { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
+.alert-detail.open { max-height: 200px; }
+.price-channel {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 0; font-size: 13px;
+}
+.price-channel .channel-name { width: 50px; color: #666; flex-shrink: 0; }
+.price-channel .channel-price { font-weight: 500; }
+.price-channel .channel-status { margin-left: auto; font-size: 11px; }
+.price-channel .channel-diff { font-size: 11px; color: #FF4444; }
+.bar-chart { display: flex; flex-direction: column; gap: 8px; }
+.bar-row { display: flex; align-items: center; gap: 8px; }
+.bar-label { width: 50px; font-size: 12px; color: #666; flex-shrink: 0; }
+.bar-track { flex: 1; height: 20px; background: #f0f0f0; border-radius: 10px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 10px; transition: width 0.6s ease; }
+.bar-value { width: 40px; text-align: right; font-size: 12px; color: #333; font-weight: 500; }
+.rank-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 50%;
+  font-size: 14px; font-weight: 700; color: #fff;
+}
+.rank-1 { background: linear-gradient(135deg, #FFD700, #FFA000); }
+.rank-2 { background: linear-gradient(135deg, #C0C0C0, #9E9E9E); }
+.rank-3 { background: linear-gradient(135deg, #CD7F32, #8D6E63); }
+.rank-other { background: #e0e0e0; color: #999; }
+@keyframes countUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.count-animate { animation: countUp 0.5s ease forwards; }
+@keyframes checkmark {
+  0% { transform: scale(0); opacity: 0; }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); opacity: 1; }
+}
+.check-animate { animation: checkmark 0.5s ease forwards; }
+.metrics-scroll {
+  display: flex; gap: 12px; overflow-x: auto;
+  padding: 0 12px 12px;
+  -webkit-overflow-scrolling: touch; scroll-snap-type: x mandatory;
+}
+.metrics-scroll::-webkit-scrollbar { display: none; }
+.metric-card {
+  min-width: 140px; background: #fff; border-radius: 12px;
+  padding: 14px; scroll-snap-align: start;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04); flex-shrink: 0;
+}
+.metric-label { font-size: 12px; color: #999; margin-bottom: 4px; }
+.metric-value { font-size: 24px; font-weight: 700; color: #333; }
+.metric-change { font-size: 11px; margin-top: 4px; }
+.metric-change.up { color: #00C853; }
+.metric-change.down { color: #FF4444; }
+.metric-change.warn { color: #FFC107; }
+.todo-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 0; border-bottom: 1px solid #f5f5f5;
+}
+.todo-item:last-child { border-bottom: none; }
+.todo-info { flex: 1; }
+.todo-title { font-size: 14px; font-weight: 500; color: #333; }
+.todo-desc { font-size: 12px; color: #999; margin-top: 2px; }
+</style>
+</head>
+<body>
+
+<div class="phone-frame" id="app">
+  <div class="status-bar"><span>9:41</span><span>📶 🔋</span></div>
+
+  <div class="page-container" id="pageContainer">
+    <!-- 首页 -->
+    <div class="page active" id="page-home">
+      <div id="pullIndicator" class="pull-indicator">↓ 下拉刷新</div>
+      <div class="flex items-center justify-between px-3 py-3 bg-white">
+        <h1 class="text-lg font-bold" style="color:#333;">运营罗盘</h1>
+        <select id="dateRange" class="text-xs border rounded-lg px-2 py-1" style="color:#666;border-color:#ddd;">
+          <option value="thisWeek">本周</option><option value="lastWeek">上周</option>
+        </select>
+      </div>
+      <div class="metrics-scroll" id="metricsScroll">
+        <div class="metric-card">
+          <div class="metric-label">同频指数</div>
+          <div class="metric-value" style="color:#FF4444;"><span class="count-up" data-target="78">0</span>分</div>
+          <div class="metric-change down">环比 <span class="count-up" data-target="5">0</span></div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">成交客户</div>
+          <div class="metric-value"><span class="count-up" data-target="1240">0</span></div>
+          <div class="metric-change up">环比 +<span class="count-up" data-target="12">0</span>%</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">老客数</div>
+          <div class="metric-value"><span class="count-up" data-target="380">0</span></div>
+          <div class="metric-change up">环比 +<span class="count-up" data-target="5">0</span>%</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">潜在客</div>
+          <div class="metric-value"><span class="count-up" data-target="520">0</span></div>
+          <div class="metric-change warn">环比 -<span class="count-up" data-target="8">0</span>%</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="pulse-dot"></span>
+          <span class="font-semibold text-sm">异常预警</span>
+          <span class="text-xs text-gray-400 ml-auto" id="alertCount">4项</span>
+        </div>
+        <div id="alertList"></div>
+      </div>
+      <div class="card">
+        <div class="text-sm font-semibold mb-3">快捷入口</div>
+        <div class="flex gap-3">
+          <div class="flex-1 bg-orange-50 rounded-lg p-3 text-center cursor-pointer quick-entry" data-tab="1" style="background:#FFF0E8;">
+            <div class="text-lg">🔍</div>
+            <div class="text-xs mt-1" style="color:#FF6B35;">价格巡检</div>
+          </div>
+          <div class="flex-1 bg-green-50 rounded-lg p-3 text-center cursor-pointer quick-entry" data-tab="2" style="background:#F0FFF4;">
+            <div class="text-lg">📊</div>
+            <div class="text-xs mt-1" style="color:#00C853;">货品矩阵</div>
+          </div>
+          <div class="flex-1 bg-blue-50 rounded-lg p-3 text-center cursor-pointer quick-entry" data-tab="3" style="background:#F0F8FF;">
+            <div class="text-lg">📅</div>
+            <div class="text-xs mt-1" style="color:#2196F3;">活动日历</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 价格管控 -->
+    <div class="page" id="page-price">
+      <div class="px-3 py-3 bg-white">
+        <h1 class="text-lg font-bold mb-3">价格管控</h1>
+        <div class="flex gap-2">
+          <input id="priceSearch" type="text" placeholder="输入款号搜索..." class="flex-1 text-xs border rounded-lg px-3 py-2" style="border-color:#ddd;">
+          <select id="priceFilter" class="text-xs border rounded-lg px-2 py-1" style="color:#666;border-color:#ddd;">
+            <option value="all">全部</option><option value="abnormal">异常</option><option value="synced">已同步</option>
+          </select>
+        </div>
+      </div>
+      <div class="mt-3" id="priceList"></div>
+    </div>
+
+    <!-- 货品管控 -->
+    <div class="page" id="page-goods">
+      <div class="px-3 py-3 bg-white">
+        <h1 class="text-lg font-bold mb-3">货品管控</h1>
+        <div class="flex gap-2">
+          <div class="flex-1 text-center py-2 rounded-lg text-sm font-medium cursor-pointer view-tab active" data-view="matrix" style="background:#FF6B35;color:#fff;">矩阵视图</div>
+          <div class="flex-1 text-center py-2 rounded-lg text-sm font-medium cursor-pointer view-tab" data-view="timeline" style="background:#f0f0f0;color:#999;">时间轴视图</div>
+        </div>
+      </div>
+      <div class="mt-3" id="goodsContent"></div>
+    </div>
+
+    <!-- 活动管控 -->
+    <div class="page" id="page-activity">
+      <div class="px-3 py-3 bg-white">
+        <h1 class="text-lg font-bold mb-3">活动管控</h1>
+        <div class="flex gap-2">
+          <div class="flex-1 text-center py-2 rounded-lg text-sm font-medium cursor-pointer activity-tab active" data-tab="calendar" style="background:#FF6B35;color:#fff;">活动日历</div>
+          <div class="flex-1 text-center py-2 rounded-lg text-sm font-medium cursor-pointer activity-tab" data-tab="todo" style="background:#f0f0f0;color:#999;">我的待办</div>
+        </div>
+      </div>
+      <div class="mt-3" id="activityContent"></div>
+    </div>
+
+    <!-- 我的 -->
+    <div class="page" id="page-mine">
+      <div class="px-3 py-3 bg-white">
+        <h1 class="text-lg font-bold">数据看板</h1>
+      </div>
+      <div class="mt-3" id="mineContent"></div>
+    </div>
+  </div>
+
+  <div class="tab-bar" id="tabBar">
+    <div class="tab-item active" data-tab="0"><span class="tab-icon">🏠</span><span class="tab-label">首页</span></div>
+    <div class="tab-item" data-tab="1"><span class="tab-icon">💰</span><span class="tab-label">价格</span></div>
+    <div class="tab-item" data-tab="2"><span class="tab-icon">📦</span><span class="tab-label">货品</span></div>
+    <div class="tab-item" data-tab="3"><span class="tab-icon">🎯</span><span class="tab-label">活动</span></div>
+    <div class="tab-item" data-tab="4"><span class="tab-icon">👤</span><span class="tab-label">我的</span></div>
+  </div>
+
+  <div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
+  <div class="drawer" id="drawer"><div class="drawer-handle"></div><div id="drawerContent"></div></div>
+
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal-box">
+      <h3 id="modalTitle">确认</h3>
+      <p id="modalDesc">确定执行此操作？</p>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeModal()">取消</button>
+        <button class="btn btn-primary" id="modalConfirmBtn">确定</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// 数据层
+// ============================================================
+const STORAGE_KEY = 'ops_dashboard_data';
+
+function loadStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {
+      syncedPrices: {},
+      confirmedActivities: {},
+      repliedReviews: {},
+      acknowledgedActivities: {}
+    };
+  } catch(e) { return {
+    syncedPrices: {},
+    confirmedActivities: {},
+    repliedReviews: {},
+    acknowledgedActivities: {}
+  }; }
+}
+
+function saveStorage(data) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+const PRODUCTS = [
+  { id:'T-001', name:'轮胎', category:'汽配', stock:320, sales7d:85, turnoverDays:3.8 },
+  { id:'T-002', name:'手机支架', category:'配件', stock:180, sales7d:42, turnoverDays:4.3 },
+  { id:'T-003', name:'头盔', category:'安全', stock:250, sales7d:63, turnoverDays:4.0 },
+  { id:'T-004', name:'雨衣', category:'防护', stock:90, sales7d:28, turnoverDays:3.2 },
+  { id:'T-005', name:'雨鞋', category:'防护', stock:200, sales7d:55, turnoverDays:3.6 },
+  { id:'T-006', name:'加厚坐垫', category:'配件', stock:150, sales7d:38, turnoverDays:3.9 },
+  { id:'T-007', name:'送餐箱', category:'装备', stock:75, sales7d:22, turnoverDays:3.4 },
+  { id:'T-008', name:'补胎液', category:'汽配', stock:110, sales7d:31, turnoverDays:3.5 },
+  { id:'T-009', name:'刹车片', category:'汽配', stock:160, sales7d:47, turnoverDays:3.4 },
+  { id:'T-010', name:'充电器', category:'配件', stock:220, sales7d:59, turnoverDays:3.7 }
+];
+
+const CHANNELS = ['线上A','线上B','线下C','线下D'];
+const PRICE_DATA = {
+  'T-001':{'线上A':299,'线上B':299,'线下C':329,'线下D':299},
+  'T-002':{'线上A':199,'线上B':199,'线下C':199,'线下D':199},
+  'T-003':{'线上A':159,'线上B':169,'线下C':159,'线下D':159},
+  'T-004':{'线上A':89,'线上B':89,'线下C':89,'线下D':99},
+  'T-005':{'线上A':69,'线上B':69,'线下C':69,'线下D':69},
+  'T-006':{'线上A':399,'线上B':399,'线下C':429,'线下D':399},
+  'T-007':{'线上A':259,'线上B':259,'线下C':259,'线下D':279},
+  'T-008':{'线上A':349,'线上B':349,'线下C':349,'线下D':349},
+  'T-009':{'线上A':179,'线上B':179,'线下C':199,'线下D':179},
+  'T-010':{'线上A':229,'线上B':229,'线下C':229,'线下D':229}
+};
+const MATRIX_STATUS = {
+  'T-001':{'线上A':'red','线上B':'red','线下C':'green','线下D':'yellow'},
+  'T-002':{'线上A':'green','线上B':'green','线下C':'green','线下D':'blue'},
+  'T-003':{'线上A':'yellow','线上B':'yellow','线下C':'red','线下D':'green'},
+  'T-004':{'线上A':'blue','线上B':'blue','线下C':'blue','线下D':'purple'},
+  'T-005':{'线上A':'green','线上B':'green','线上C':'green','线下D':'green'},
+  'T-006':{'线上A':'red','线上B':'yellow','线下C':'red','线下D':'yellow'},
+  'T-007':{'线上A':'purple','线上B':'purple','线上C':'blue','线下D':'blue'},
+  'T-008':{'线上A':'green','线上B':'green','线上C':'green','线下D':'green'},
+  'T-009':{'线上A':'red','线上B':'red','线上C':'yellow','线下D':'yellow'},
+  'T-010':{'线上A':'blue','线上B':'blue','线上C':'blue','线下D':'green'}
+};
+const SALES_TREND = [
+  { date:'04-23', deals:168, returning:52, potential:74 },
+  { date:'04-24', deals:175, returning:55, potential:70 },
+  { date:'04-25', deals:182, returning:58, potential:68 },
+  { date:'04-26', deals:170, returning:50, potential:72 },
+  { date:'04-27', deals:190, returning:62, potential:80 },
+  { date:'04-28', deals:185, returning:56, potential:78 },
+  { date:'04-29', deals:195, returning:60, potential:82 }
+];
+const ACTIVITIES = [
+  { id:'A001', name:'五一全场8折', scope:'全门店', status:'进行中', date:'2026-04-28' },
+  { id:'A002', name:'会员日双倍积分', scope:'单门店', status:'待确认', date:'2026-04-25', store:'上海静安店' },
+  { id:'A003', name:'夏季新品发布会', scope:'单门店', status:'待确认', date:'2026-04-30', store:'北京朝阳店' }
+];
+const REVIEWS = [
+  { id:'R001', content:'质量很差，穿一次就坏了', rating:1, time:'2026-04-27 14:30', replied:false },
+  { id:'R002', content:'尺码偏大，建议改进', rating:2, time:'2026-04-28 09:15', replied:false },
+  { id:'R003', content:'颜色和图片有差异', rating:3, time:'2026-04-26 16:00', replied:true },
+  { id:'R004', content:'物流太慢了', rating:2, time:'2026-04-25 11:20', replied:true },
+  { id:'R005', content:'包装破损', rating:1, time:'2026-04-28 20:00', replied:false }
+];
+const TIMELINE_DATA = [
+  { date:'04-23', items:[{ type:'上新', count:2, tag:'blue' },{ type:'转引流款', count:1, tag:'red' }] },
+  { date:'04-24', items:[{ type:'上新', count:1, tag:'blue' },{ type:'转清仓款', count:1, tag:'yellow' }] },
+  { date:'04-25', items:[{ type:'转引流款', count:2, tag:'red' },{ type:'识别趋势爆款', count:1, tag:'purple' }] },
+  { date:'04-26', items:[{ type:'上新', count:3, tag:'blue' }] },
+  { date:'04-27', items:[{ type:'转利润款', count:1, tag:'green' },{ type:'转清仓款', count:2, tag:'yellow' }] },
+  { date:'04-28', items:[{ type:'上新', count:1, tag:'blue' },{ type:'识别趋势爆款', count:1, tag:'purple' }] },
+  { date:'04-29', items:[{ type:'转引流款', count:1, tag:'red' },{ type:'转清仓款', count:1, tag:'yellow' }] }
+];
+
+// ============================================================
+// 工具函数
+// ============================================================
+function $(id) { return document.getElementById(id); }
+function qs(sel, ctx) { return (ctx||document).querySelector(sel); }
+function qsa(sel, ctx) { return (ctx||document).querySelectorAll(sel); }
+
+function formatNum(n) { return n.toLocaleString(); }
+
+function countUp(el, target, duration) {
+  if (!el) return;
+  const start = 0;
+  const startTime = performance.now();
+  function step(now) {
+    const progress = Math.min((now - startTime) / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    const current = Math.round(start + (target - start) * eased);
+    el.textContent = formatNum(current);
+    if (progress < 1) requestAnimationFrame(step);
+    else el.textContent = formatNum(target);
+  }
+  requestAnimationFrame(step);
+}
+
+function initCountUps(container) {
+  container = container || document;
+  container.querySelectorAll('.count-up').forEach(el => {
+    const target = parseInt(el.dataset.target) || 0;
+    countUp(el, target, 800);
+  });
+}
+
+// ============================================================
+// 页面切换
+// ============================================================
+let currentTab = 0;
+const pageIds = ['page-home','page-price','page-goods','page-activity','page-mine'];
+
+function switchTab(tabIndex) {
+  if (tabIndex === currentTab) return;
+  const oldPage = $(pageIds[currentTab]);
+  const newPage = $(pageIds[tabIndex]);
+  const direction = tabIndex > currentTab ? 1 : -1;
+
+  oldPage.classList.remove('active');
+  oldPage.classList.add('prev');
+  newPage.style.transform = direction > 0 ? 'translateX(100%)' : 'translateX(-100%)';
+  newPage.style.opacity = '0';
+  newPage.classList.add('active');
+
+  requestAnimationFrame(() => {
+    newPage.style.transform = 'translateX(0)';
+    newPage.style.opacity = '1';
+    oldPage.style.transform = direction > 0 ? 'translateX(-30%)' : 'translateX(30%)';
+  });
+
+  setTimeout(() => {
+    oldPage.classList.remove('prev');
+    oldPage.style.transform = '';
+    oldPage.style.opacity = '';
+  }, 300);
+
+  qsa('.tab-item').forEach((el, i) => {
+    el.classList.toggle('active', i === tabIndex);
+  });
+
+  currentTab = tabIndex;
+  renderPage(tabIndex);
+}
+
+function renderPage(tabIndex) {
+  switch(tabIndex) {
+    case 0: renderHome(); break;
+    case 1: renderPriceList(); break;
+    case 2: renderGoods(); break;
+    case 3: renderActivity(); break;
+    case 4: renderMine(); break;
+  }
+}
+
+// ============================================================
+// 弹窗 & 抽屉
+// ============================================================
+let modalCallback = null;
+
+function showModal(title, desc, cb) {
+  $('modalTitle').textContent = title;
+  $('modalDesc').textContent = desc;
+  $('modalOverlay').classList.add('show');
+  modalCallback = cb;
+  $('modalConfirmBtn').onclick = function() {
+    closeModal();
+    if (modalCallback) modalCallback();
+  };
+}
+
+function closeModal() {
+  $('modalOverlay').classList.remove('show');
+  modalCallback = null;
+}
+
+function showDrawer(html) {
+  $('drawerContent').innerHTML = html;
+  $('drawer').classList.add('show');
+  $('drawerOverlay').classList.add('show');
+}
+
+function closeDrawer() {
+  $('drawer').classList.remove('show');
+  $('drawerOverlay').classList.remove('show');
+}
+
+// ============================================================
+// 首页渲染
+// ============================================================
+function renderHome() {
+  const store = loadStorage();
+  const alertCount = getAlertCount(store);
+  $('alertCount').textContent = alertCount + '项';
+  renderAlertList(store);
+  initCountUps($('page-home'));
+}
+
+function getAlertCount(store) {
+  let count = 0;
+  // 价格异常
+  const priceAbnormal = PRODUCTS.filter(p => {
+    const prices = PRICE_DATA[p.id];
+    if (!prices) return false;
+    const vals = Object.values(prices);
+    return Math.max(...vals) - Math.min(...vals) > 0;
+  });
+  if (priceAbnormal.length > 0) count++;
+  // 货品异常
+  const goodsAbnormal = PRODUCTS.filter(p => {
+    const status = MATRIX_STATUS[p.id];
+    if (!status) return false;
+    const types = Object.values(status);
+    return new Set(types).size > 2;
+  });
+  if (goodsAbnormal.length > 0) count++;
+  // 活动待办
+  const pendingActs = ACTIVITIES.filter(a => {
+    if (a.scope === '全门店') return a.status === '待确认' && !store.confirmedActivities[a.id];
+    return a.status === '待确认' && !store.acknowledgedActivities[a.id];
+  });
+  if (pendingActs.length > 0) count++;
+  // 售后异常
+  const unreplied = REVIEWS.filter(r => !r.replied && !store.repliedReviews[r.id]);
+  if (unreplied.length > 0) count++;
+  return count;
+}
+
+function renderAlertList(store) {
+  const container = $('alertList');
+  const alerts = [];
+
+  // 价格异常
+  const priceAbnormal = PRODUCTS.filter(p => {
+    const prices = PRICE_DATA[p.id];
+    if (!prices) return false;
+    const vals = Object.values(prices);
+    return Math.max(...vals) - Math.min(...vals) > 0;
+  });
+  if (priceAbnormal.length > 0) {
+    alerts.push({
+      title: `价格异常：${priceAbnormal.length}款同款不同价`,
+      detail: priceAbnormal.map(p => `${p.id} ${p.name}`).join('、'),
+      color: 'red'
+    });
+  }
+
+  // 货品异常
+  const goodsAbnormal = PRODUCTS.filter(p => {
+    const status = MATRIX_STATUS[p.id];
+    if (!status) return false;
+    const types = Object.values(status);
+    return new Set(types).size > 2;
+  });
+  if (goodsAbnormal.length > 0) {
+    alerts.push({
+      title: `货品异常：${goodsAbnormal.length}款生命周期状态冲突`,
+      detail: goodsAbnormal.map(p => `${p.id} ${p.name}`).join('、'),
+      color: 'red'
+    });
+  }
+
+  // 活动待办
+  const pendingActs = ACTIVITIES.filter(a => {
+    if (a.scope === '全门店') return a.status === '待确认' && !store.confirmedActivities[a.id];
+    return a.status === '待确认' && !store.acknowledgedActivities[a.id];
+  });
+  if (pendingActs.length > 0) {
+    alerts.push({
+      title: `活动待办：${pendingActs.length}条${pendingActs.some(a => a.scope === '单门店') ? '单门店' : ''}活动未确认`,
+      detail: pendingActs.map(a => a.name).join('、'),
+      color: 'orange'
+    });
+  }
+
+  // 售后异常
+  const unreplied = REVIEWS.filter(r => !r.replied && !store.repliedReviews[r.id]);
+  if (unreplied.length > 0) {
+    alerts.push({
+      title: `售后异常：${unreplied.length}条差评超24小时未回复`,
+      detail: unreplied.map(r => r.content.substring(0, 12) + '...').join('、'),
+      color: 'red'
+    });
+  }
+
+  if (alerts.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="icon check-animate">🎉</div>
+        <div class="text">所有渠道已同频 🎉</div>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = alerts.map((a, i) => `
+    <div class="alert-item py-2 border-b border-gray-50 last:border-0" onclick="toggleAlert(${i})">
+      <div class="flex items-center gap-2">
+        <span class="pulse-dot" style="background:${a.color === 'orange' ? '#FFC107' : '#FF4444'}"></span>
+        <span class="text-sm flex-1">${a.title}</span>
+        <span class="text-gray-300 text-xs">▼</span>
+      </div>
+      <div class="alert-detail text-xs text-gray-500 mt-1 pl-4" id="alertDetail${i}">${a.detail}</div>
+    </div>
+  `).join('');
+}
+
+function toggleAlert(index) {
+  const el = $('alertDetail' + index);
+  el.classList.toggle('open');
+}
+
+// ============================================================
+// 价格管控渲染
+// ============================================================
+function renderPriceList() {
+  const store = loadStorage();
+  const search = ($('priceSearch')?.value || '').toLowerCase();
+  const filter = $('priceFilter')?.value || 'all';
+
+  let products = PRODUCTS.filter(p => {
+    if (search && !p.id.toLowerCase().includes(search) && !p.name.includes(search)) return false;
+    const isSynced = !!store.syncedPrices[p.id];
+    if (filter === 'synced' && !isSynced) return false;
+    if (filter === 'abnormal') {
+      const prices = PRICE_DATA[p.id];
+      if (!prices) return false;
+      const vals = Object.values(prices);
+      const isNormal = Math.max(...vals) - Math.min(...vals) === 0;
+      if (isNormal) return false;
+    }
+    return true;
+  });
+
+  if (products.length === 0) {
+    $('priceList').innerHTML = `<div class="empty-state"><div class="icon">🔍</div><div class="text">暂无匹配结果</div></div>`;
+    return;
+  }
+
+  $('priceList').innerHTML = products.map(p => {
+    const prices = PRICE_DATA[p.id];
+    const isSynced = !!store.syncedPrices[p.id];
+    const vals = Object.values(prices);
+    const minPrice = Math.min(...vals);
+    const maxPrice = Math.max(...vals);
+    const hasDiff = maxPrice - minPrice > 0;
+
+    return `
+    <div class="card ${isSynced ? 'border-l-4' : ''}" style="${isSynced ? 'border-left:4px solid #00C853;' : ''}">
+      <div class="flex items-center justify-between mb-2">
+        <div>
+          <span class="font-semibold text-sm">${p.id}</span>
+          <span class="text-xs text-gray-500 ml-2">${p.name}</span>
+        </div>
+        ${isSynced ? '<span class="text-xs text-green-500 font-medium">✅ 已同步</span>' : ''}
+      </div>
+      ${CHANNELS.map(ch => {
+        const price = prices[ch];
+        const diff = price - minPrice;
+        const diffPercent = minPrice > 0 ? ((diff / minPrice) * 100).toFixed(0) : 0;
+        const isAbnormal = diff > 0;
+        return `
+        <div class="price-channel">
+          <span class="channel-name">${ch}</span>
+          <span class="channel-price">¥${price}</span>
+          ${isAbnormal ? `<span class="channel-diff">+${diffPercent}%</span>` : ''}
+          <span class="channel-status">${isAbnormal ? '❌' : '✅'}</span>
+        </div>`;
+      }).join('')}
+      <div class="flex gap-2 mt-3 pt-3 border-t border-gray-50">
+        ${hasDiff && !isSynced ? `
+          <button class="btn btn-primary btn-sm" onclick="syncPrice('${p.id}')">同步到¥${minPrice}</button>
+          <button class="btn btn-outline btn-sm" onclick="ignorePrice('${p.id}')">忽略</button>
+        ` : ''}
+        <button class="btn btn-outline btn-sm">查看趋势图</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function syncPrice(productId) {
+  showModal('确认同步', `确定将 ${productId} 同步到最低价？`, () => {
+    const store = loadStorage();
+    store.syncedPrices[productId] = Date.now();
+    saveStorage(store);
+    renderPriceList();
+    renderHome();
+  });
+}
+
+function ignorePrice(productId) {
+  const store = loadStorage();
+  store.syncedPrices[productId] = Date.now();
+  saveStorage(store);
+  renderPriceList();
+  renderHome();
+}
+
+// ============================================================
+// 货品管控渲染
+// ============================================================
+let goodsView = 'matrix';
+
+function renderGoods() {
+  if (goodsView === 'matrix') renderMatrix();
+  else renderTimeline();
+}
+
+function renderMatrix() {
+  const container = $('goodsContent');
+  let html = '<div class="card matrix-wrap"><table class="matrix-table"><thead><tr><th>款号</th>';
+  CHANNELS.forEach(ch => { html += `<th>${ch}</th>`; });
+  html += '</tr></thead><tbody>';
+
+  PRODUCTS.forEach(p => {
+    html += `<tr><td>${p.id}<br><span class="text-gray-400 text-10">${p.name}</span></td>`;
+    CHANNELS.forEach(ch => {
+      const status = MATRIX_STATUS[p.id]?.[ch] || 'green';
+      const colorMap = { red:'引流款', green:'利润款', yellow:'清仓款', blue:'上新款', purple:'趋势爆款' };
+      html += `<td><span class="dot-status dot-${status}" onclick="showProductDetail('${p.id}','${ch}')" title="${colorMap[status]||''}"></span></td>`;
+    });
+    html += '</tr>';
+  });
+
+  html += '</tbody></table></div>';
+  html += '<div class="card"><div class="text-xs text-gray-400 flex gap-4 flex-wrap">';
+  html += '<span><span class="dot-status dot-red" style="width:12px;height:12px;vertical-align:middle;margin-right:4px;"></span>引流款</span>';
+  html += '<span><span class="dot-status dot-green" style="width:12px;height:12px;vertical-align:middle;margin-right:4px;"></span>利润款</span>';
+  html += '<span><span class="dot-status dot-yellow" style="width:12px;height:12px;vertical-align:middle;margin-right:4px;"></span>清仓款</span>';
+  html += '<span><span class="dot-status dot-blue" style="width:12px;height:12px;vertical-align:middle;margin-right:4px;"></span>上新款</span>';
+  html += '<span><span class="dot-status dot-purple" style="width:12px;height:12px;vertical-align:middle;margin-right:4px;"></span>趋势爆款</span>';
+  html += '</div></div>';
+
+  container.innerHTML = html;
+}
+
+function showProductDetail(productId, channel) {
+  const p = PRODUCTS.find(x => x.id === productId);
+  if (!p) return;
+  const status = MATRIX_STATUS[productId]?.[channel] || 'green';
+  const colorMap = { red:'引流款', green:'利润款', yellow:'清仓款', blue:'上新款', purple:'趋势爆款' };
+  const colorHex = { red:'#FF4444', green:'#00C853', yellow:'#FFC107', blue:'#2196F3', purple:'#9C27B0' };
+
+  let suggestion = '';
+  if (status === 'red') suggestion = '加大推广投入，提升曝光量';
+  else if (status === 'green') suggestion = '维持现状，关注竞品动态';
+  else if (status === 'yellow') suggestion = '制定清仓计划，尽快消化库存';
+  else if (status === 'blue') suggestion = '观察市场反馈，准备补货';
+  else if (status === 'purple') suggestion = '重点推广，抢占市场份额';
+
+  showDrawer(`
+    <div class="text-center mb-4">
+      <span class="font-bold text-base">${p.id} ${p.name}</span>
+    </div>
+    <div class="space-y-3 text-sm">
+      <div class="flex justify-between"><span class="text-gray-500">渠道</span><span>${channel}</span></div>
+      <div class="flex justify-between"><span class="text-gray-500">品类</span><span>${p.category}</span></div>
+      <div class="flex justify-between"><span class="text-gray-500">当前状态</span><span style="color:${colorHex[status]};font-weight:600;">${colorMap[status]}</span></div>
+      <div class="flex justify-between"><span class="text-gray-500">库存</span><span>${p.stock}</span></div>
+      <div class="flex justify-between"><span class="text-gray-500">近7天销量</span><span>${p.sales7d}</span></div>
+      <div class="flex justify-between"><span class="text-gray-500">周转天数</span><span>${p.turnoverDays}天</span></div>
+      <div class="mt-3 p-3 bg-orange-50 rounded-lg text-xs" style="background:#FFF0E8;">
+        <span class="font-medium" style="color:#FF6B35;">建议动作：</span>${suggestion}
+      </div>
+    </div>
+  `);
+}
+
+function renderTimeline() {
+  const container = $('goodsContent');
+  let html = '<div class="card timeline">';
+
+  TIMELINE_DATA.forEach((day, idx) => {
+    html += `<div class="timeline-item" onclick="toggleTimelineDetail(${idx})">
+      <div class="timeline-date">${day.date}</div>
+      <div class="timeline-content">`;
+    day.items.forEach(item => {
+      html += `<span class="tag tag-${item.tag}">${item.type} ${item.count}</span> `;
+    });
+    html += `</div>
+      <div class="alert-detail text-xs text-gray-500 mt-2" id="timelineDetail${idx}">
+        <div class="bg-gray-50 rounded-lg p-3">`;
+    day.items.forEach(item => {
+      html += `<div class="py-1">• ${item.type}：${item.count}款</div>`;
+    });
+    html += `</div></div></div>`;
+  });
+
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function toggleTimelineDetail(index) {
+  const el = $('timelineDetail' + index);
+  if (el) el.classList.toggle('open');
+}
+
+// ============================================================
+// 活动管控渲染
+// ============================================================
+let activityTab = 'calendar';
+
+function renderActivity() {
+  if (activityTab === 'calendar') renderCalendar();
+  else renderTodo();
+}
+
+function renderCalendar() {
+  const container = $('activityContent');
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const today = now.getDate();
+
+  const eventDates = ACTIVITIES.map(a => parseInt(a.date.split('-')[2]));
+
+  let html = '<div class="card"><div class="text-center font-semibold text-sm mb-3">' + year + '年' + (month+1) + '月</div>';
+  html += '<div class="calendar-grid">';
+  ['日','一','二','三','四','五','六'].forEach(d => { html += `<div class="calendar-header">${d}</div>`; });
+
+  for (let i = 0; i < firstDay; i++) {
+    html += '<div class="calendar-day other-month"></div>';
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    const hasEvent = eventDates.includes(d);
+    const isToday = d === today;
+    html += `<div class="calendar-day ${isToday ? 'today' : ''} ${hasEvent ? 'has-event' : ''}" onclick="showDayEvents(${d})">${d}</div>`;
+  }
+  html += '</div></div>';
+
+  // 活动列表
+  html += '<div class="card"><div class="text-sm font-semibold mb-3">本月活动</div>';
+  ACTIVITIES.forEach(a => {
+    const store = loadStorage();
+    const isConfirmed = store.confirmedActivities[a.id];
+    const isAcknowledged = store.acknowledgedActivities[a.id];
+    const statusColor = a.status === '进行中' ? '#00C853' : a.status === '待确认' ? '#FFC107' : '#999';
+    html += `<div class="border-b border-gray-50 py-3 last:border-0">
+      <div class="flex items-center justify-between">
+        <div>
+          <div class="text-sm font-medium">${a.name}</div>
+          <div class="text-xs text-gray-400 mt-1">${a.date} · ${a.scope}${a.store ? ' · ' + a.store : ''}</div>
+        </div>
+        <span class="text-xs px-2 py-1 rounded-full" style="background:${statusColor}20;color:${statusColor};">${a.status}</span>
+      </div>
+      ${a.scope === '单门店' && !isAcknowledged && a.status === '待确认' ? `
+        <div class="mt-2 flex items-center gap-2">
+          <span class="text-xs text-red-500 font-medium">⚠️ 需知晓</span>
+          <button class="btn btn-sm btn-success" onclick="acknowledgeActivity('${a.id}')">我已知晓</button>
+        </div>
+      ` : ''}
+      ${isAcknowledged ? `<div class="mt-2 text-xs text-green-500">✅ 已确认知晓</div>` : ''}
+      ${isConfirmed ? `<div class="mt-2 text-xs text-green-500">✅ 已确认</div>` : ''}
+    </div>`;
+  });
+  html += '</div>';
+
+  container.innerHTML = html;
+}
+
+function showDayEvents(day) {
+  const dateStr = '2026-04-' + String(day).padStart(2, '0');
+  const events = ACTIVITIES.filter(a => a.date === dateStr);
+  if (events.length === 0) {
+    showModal('提示', '当天暂无活动');
+    return;
+  }
+  showDrawer(`
+    <div class="text-center font-semibold mb-4">${dateStr} 活动</div>
+    ${events.map(a => `
+      <div class="border-b border-gray-50 py-3 last:border-0">
+        <div class="text-sm font-medium">${a.name}</div>
+        <div class="text-xs text-gray-400 mt-1">${a.scope}${a.store ? ' · ' + a.store : ''} · ${a.status}</div>
+      </div>
+    `).join('')}
+  `);
+}
+
+function acknowledgeActivity(id) {
+  const store = loadStorage();
+  store.acknowledgedActivities[id] = Date.now();
+  saveStorage(store);
+  renderActivity();
+  renderHome();
+}
+
+function renderTodo() {
+  const container = $('activityContent');
+  const store = loadStorage();
+  const pending = ACTIVITIES.filter(a => {
+    if (a.scope === '全门店') return a.status === '待确认' && !store.confirmedActivities[a.id];
+    return a.status === '待确认' && !store.acknowledgedActivities[a.id];
+  });
+
+  if (pending.length === 0) {
+    container.innerHTML = `<div class="empty-state"><div class="icon check-animate">✅</div><div class="text">所有活动已处理</div></div>`;
+    return;
+  }
+
+  let html = '<div class="card"><div class="text-sm font-semibold mb-3">待确认活动</div>';
+  pending.forEach(a => {
+    html += `<div class="todo-item">
+      <div class="todo-info">
+        <div class="todo-title">${a.name}</div>
+        <div class="todo-desc">${a.date} · ${a.scope}${a.store ? ' · ' + a.store : ''}</div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="confirmActivity('${a.id}')">确认</button>
+    </div>`;
+  });
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function confirmActivity(id) {
+  showModal('确认活动', '是否已制定应对策略？', () => {
+    const store = loadStorage();
+    store.confirmedActivities[id] = Date.now();
+    saveStorage(store);
+    renderActivity();
+    renderHome();
+  });
+}
+
+// ============================================================
+// 我的（数据看板）渲染
+// ============================================================
+function renderMine() {
+  const container = $('mineContent');
+  const store = loadStorage();
+
+  // 折线图
+  const chartHtml = renderLineChart();
+
+  // 排名
+  const rankHtml = `
+    <div class="card">
+      <div class="text-sm font-semibold mb-3">区域排名</div>
+      <div class="flex items-center gap-3">
+        <span class="rank-badge rank-3">3</span>
+        <div>
+          <div class="text-sm font-medium">第3名 / 共12家</div>
+          <div class="text-xs text-gray-400">较上周上升1名 ↑</div>
+        </div>
+      </div>
+    </div>`;
+
+  // 品类占比
+  const categories = [
+    { name:'易损消耗件', pct:45, color:'#FF6B35' },
+    { name:'电池&充电类', pct:30, color:'#2196F3' },
+    { name:'电器电路类', pct:15, color:'#00C853' },
+    { name:'车身车架外观件', pct:10, color:'#9C27B0' }
+  ];
+  const barHtml = `
+    <div class="card">
+      <div class="text-sm font-semibold mb-3">品类占比</div>
+      <div class="bar-chart">
+        ${categories.map(c => `
+          <div class="bar-row">
+            <span class="bar-label">${c.name}</span>
+            <div class="bar-track">
+              <div class="bar-fill" style="width:${c.pct}%;background:${c.color};"></div>
+            </div>
+            <span class="bar-value">${c.pct}%</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>`;
+
+  // 售后
+  const unreplied = REVIEWS.filter(r => !r.replied && !store.repliedReviews[r.id]);
+  const afterSaleHtml = `
+    <div class="card">
+      <div class="text-sm font-semibold mb-3">售后概览</div>
+      <div class="flex items-center gap-3 mb-3">
+        <div>
+          <div class="text-xs text-gray-500">本周退货率</div>
+          <div class="text-lg font-bold" style="color:#FF4444;">8.5%</div>
+          <div class="text-xs" style="color:#FF4444;">高于均值 2.3%</div>
+        </div>
+        <div class="border-l border-gray-100 pl-3">
+          <div class="text-xs text-gray-500">新增差评</div>
+          <div class="text-lg font-bold" style="color:#FF4444;">${REVIEWS.filter(r => !r.replied && !store.repliedReviews[r.id]).length + REVIEWS.filter(r => r.replied).length}</div>
+          <div class="text-xs" style="color:#FF4444;">${unreplied.length}条未回复</div>
+        </div>
+      </div>
+      ${unreplied.length > 0 ? `
+        <div class="text-xs font-medium mb-2" style="color:#FF4444;">未回复差评：</div>
+        ${unreplied.map(r => `
+          <div class="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+            <div class="flex-1">
+              <div class="text-xs">${r.content}</div>
+              <div class="text-10 text-gray-400 mt-1">${r.time}</div>
+            </div>
+            <button class="btn btn-danger btn-sm" onclick="replyReview('${r.id}')">去回复</button>
+          </div>
+        `).join('')}
+      ` : '<div class="text-xs text-green-500">✅ 所有差评已回复</div>'}
+    </div>`;
+
+  container.innerHTML = chartHtml + rankHtml + barHtml + afterSaleHtml;
+}
+
+function renderLineChart() {
+  const width = 320, height = 160;
+  const padding = { top: 20, right: 10, bottom: 25, left: 35 };
+  const chartW = width - padding.left - padding.right;
+  const chartH = height - padding.top - padding.bottom;
+
+  const maxVal = Math.max(...SALES_TREND.map(d => Math.max(d.deals, d.returning, d.potential)));
+  const scaleY = (v) => padding.top + chartH - (v / maxVal) * chartH;
+  const scaleX = (i) => padding.left + (i / (SALES_TREND.length - 1)) * chartW;
+
+  function makeLine(data, color) {
+    const points = data.map((v, i) => `${scaleX(i)},${scaleY(v)}`).join(' ');
+    return `<polyline points="${points}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round"/>`;
+  }
+
+  function makeDots(data, color) {
+    return data.map((v, i) =>
+      `<circle cx="${scaleX(i)}" cy="${scaleY(v)}" r="3" fill="${color}" stroke="#fff" stroke-width="1.5"/>`
+    ).join('');
+  }
+
+  // Y轴刻度
+  const yTicks = 4;
+  let yLabels = '';
+  for (let i = 0; i <= yTicks; i++) {
+    const val = Math.round((maxVal / yTicks) * i);
+    const y = scaleY(val);
+    yLabels += `<text x="${padding.left - 5}" y="${y + 4}" text-anchor="end" font-size="10" fill="#999">${val}</text>`;
+    yLabels += `<line x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}" stroke="#f0f0f0" stroke-width="1"/>`;
+  }
+
+  // X轴标签
+  let xLabels = '';
+  SALES_TREND.forEach((d, i) => {
+    xLabels += `<text x="${scaleX(i)}" y="${height - 5}" text-anchor="middle" font-size="9" fill="#999">${d.date}</text>`;
+  });
+
+  // 图例
+  const legend = `
+    <rect x="${width - 120}" y="5" width="10" height="10" rx="2" fill="#FF6B35"/>
+    <text x="${width - 106}" y="14" font-size="10" fill="#666">成交</text>
+    <rect x="${width - 70}" y="5" width="10" height="10" rx="2" fill="#2196F3"/>
+    <text x="${width - 56}" y="14" font-size="10" fill="#666">老客</text>
+    <rect x="${width - 20}" y="5" width="10" height="10" rx="2" fill="#00C853"/>
+    <text x="${width - 6}" y="14" font-size="10" fill="#666">潜在</text>
+  `;
+
+  const svg = `
+    <div class="card">
+      <div class="text-sm font-semibold mb-2">流量趋势（近7天）</div>
+      <svg class="chart-svg" viewBox="0 0 ${width} ${height}">
+        ${yLabels}
+        ${xLabels}
+        ${makeLine(SALES_TREND.map(d => d.deals), '#FF6B35')}
+        ${makeLine(SALES_TREND.map(d => d.returning), '#2196F3')}
+        ${makeLine(SALES_TREND.map(d => d.potential), '#00C853')}
+        ${makeDots(SALES_TREND.map(d => d.deals), '#FF6B35')}
+        ${makeDots(SALES_TREND.map(d => d.returning), '#2196F3')}
+        ${makeDots(SALES_TREND.map(d => d.potential), '#00C853')}
+        ${legend}
+      </svg>
+    </div>`;
+
+  return svg;
+}
+
+function replyReview(id) {
+  showModal('回复评价', '确认回复该差评？', () => {
+    const store = loadStorage();
+    store.repliedReviews[id] = Date.now();
+    saveStorage(store);
+    renderMine();
+    renderHome();
+  });
+}
+
+// ============================================================
+// 下拉刷新
+// ============================================================
+let pullStartY = 0;
+let isPulling = false;
+
+function initPullRefresh() {
+  const homePage = $('page-home');
+  const indicator = $('pullIndicator');
+
+  homePage.addEventListener('touchstart', (e) => {
+    if (homePage.scrollTop <= 0) {
+      pullStartY = e.touches[0].clientY;
+      isPulling = true;
+    }
+  }, { passive: true });
+
+  homePage.addEventListener('touchmove', (e) => {
+    if (!isPulling) return;
+    const diff = e.touches[0].clientY - pullStartY;
+    if (diff > 40) {
+      indicator.textContent = '松开刷新';
+      indicator.classList.add('show');
+    } else {
+      indicator.textContent = '↓ 下拉刷新';
+    }
+  }, { passive: true });
+
+  homePage.addEventListener('touchend', () => {
+    if (!isPulling) return;
+    isPulling = false;
+    if (indicator.classList.contains('show')) {
+      indicator.textContent = '🔄 刷新中...';
+      setTimeout(() => {
+        indicator.textContent = '✅ 刷新完成';
+        setTimeout(() => {
+          indicator.classList.remove('show');
+          indicator.textContent = '↓ 下拉刷新';
+          renderHome();
+        }, 500);
+      }, 800);
+    }
+  }, { passive: true });
+}
+
+// ============================================================
+// 事件绑定
+// ============================================================
+function init() {
+  // Tab 切换
+  qsa('.tab-item').forEach(el => {
+    el.addEventListener('click', () => switchTab(parseInt(el.dataset.tab)));
+  });
+
+  // 快捷入口
+  qsa('.quick-entry').forEach(el => {
+    el.addEventListener('click', () => switchTab(parseInt(el.dataset.tab)));
+  });
+
+  // 货品视图切换
+  qsa('.view-tab').forEach(el => {
+    el.addEventListener('click', () => {
+      qsa('.view-tab').forEach(t => {
+        t.style.background = '#f0f0f0';
+        t.style.color = '#999';
+      });
+      el.style.background = '#FF6B35';
+      el.style.color = '#fff';
+      goodsView = el.dataset.view;
+      renderGoods();
+    });
+  });
+
+  // 活动Tab切换
+  qsa('.activity-tab').forEach(el => {
+    el.addEventListener('click', () => {
+      qsa('.activity-tab').forEach(t => {
+        t.style.background = '#f0f0f0';
+        t.style.color = '#999';
+      });
+      el.style.background = '#FF6B35';
+      el.style.color = '#fff';
+      activityTab = el.dataset.tab;
+      renderActivity();
+    });
+  });
+
+  // 价格搜索
+  $('priceSearch').addEventListener('input', renderPriceList);
+  $('priceFilter').addEventListener('change', renderPriceList);
+
+  // 日期选择
+  $('dateRange').addEventListener('change', () => {
+    renderHome();
+  });
+
+  // 初始化下拉刷新
+  initPullRefresh();
+
+  // 渲染首页
+  renderHome();
+}
+
+// 页面加载完成后初始化
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
+
+
